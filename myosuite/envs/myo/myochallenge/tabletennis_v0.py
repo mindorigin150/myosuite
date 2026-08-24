@@ -343,7 +343,11 @@ class TableTennisEnvV0(BaseV0):
             return 1
         elif solved:
             return 1
-        elif evaluate_pingpong_trajectory(self.contact_trajectory) in [0, 2, 3]:
+        elif evaluate_pingpong_trajectory(self.contact_trajectory) in (
+            ContactTrajIssue.OWN_HALF,
+            ContactTrajIssue.NO_PADDLE,
+            ContactTrajIssue.DOUBLE_TOUCH,
+        ):
             return 1
         return 0
 

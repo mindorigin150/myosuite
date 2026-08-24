@@ -4,7 +4,13 @@ import gymnasium as gym
 import mujoco
 import myosuite  # noqa: F401
 import numpy as np
-from myosuite.envs.myo.myochallenge.tabletennis_v0 import preprocess_table_tennis_spec
+from myosuite.envs.myo.myochallenge.tabletennis_v0 import (
+    ContactTrajIssue,
+    PingpongContactLabels,
+    TableTennisEnvV0,
+    evaluate_pingpong_trajectory,
+    preprocess_table_tennis_spec,
+)
 
 
 def test_p2_preprocessor_preserves_official_paddle_geometry():
@@ -47,3 +53,31 @@ def test_p2_reset_seed_covers_domain_randomization():
     assert second_mass == first_mass
     assert first_subtree_mass == first_mass
     np.testing.assert_array_equal(second_friction, first_friction)
+
+
+def test_contact_trajectory_issues_terminate():
+    env = object.__new__(TableTennisEnvV0)
+    trajectories = {
+        ContactTrajIssue.NO_PADDLE: [{PingpongContactLabels.OPPONENT}],
+        ContactTrajIssue.OWN_HALF: [
+            {PingpongContactLabels.OWN},
+            set(),
+            {PingpongContactLabels.OWN},
+        ],
+        ContactTrajIssue.DOUBLE_TOUCH: [
+            {PingpongContactLabels.PADDLE},
+            set(),
+            {PingpongContactLabels.PADDLE},
+        ],
+    }
+
+    for expected_issue, trajectory in trajectories.items():
+        env.obs_dict = {"time": 0.0}
+        env.contact_trajectory = trajectory
+        assert evaluate_pingpong_trajectory(trajectory) is expected_issue
+        assert env._get_done(z=1.0, solved=False) == 1
+
+    env.obs_dict = {"time": 0.0}
+    env.contact_trajectory = [{PingpongContactLabels.PADDLE}]
+    assert evaluate_pingpong_trajectory(env.contact_trajectory) is ContactTrajIssue.MISS
+    assert env._get_done(z=1.0, solved=True) == 1
